@@ -1,0 +1,10 @@
+{
+  "name": "waka-oss",
+  "private": true,
+  "packageManager": "pnpm@12.16.1",
+  "scripts": {
+    "dev:server": "cargo run -p server",
+    "dev:web": "pnpm --filter web dev",
+    "build": "pnpm --filter web build && cargo build --release -p server --target x86_64-unknown-linux-musl"
+  }
+}
