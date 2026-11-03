@@ -143,8 +143,8 @@ export function Explore(props: {
           color: sliceColor(slice),
           symbol: 'none',
           triggerLineEvent: true,
-          lineStyle: { width: 1 },
-          areaStyle: { opacity: 0.55 },
+          lineStyle: { width: 1, color: cssColor('--card') },
+          areaStyle: { opacity: 1 },
           data: buckets.map((bucket) => totals.get(bucket) ?? 0),
         }
       }),

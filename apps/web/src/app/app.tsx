@@ -219,7 +219,10 @@ export function App() {
       >
         <header className="bg-background/90 sticky top-0 z-10 border-b backdrop-blur">
           <div className="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-6 gap-y-2 px-6 py-2.5">
-            <span className="text-sm font-semibold tracking-tight">waka</span>
+            <span className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+              <span className="bg-primary size-2.5 rounded-[3px]" />
+              waka
+            </span>
             <TabsList className="max-w-full overflow-x-auto">
               {views.map((item) => (
                 <TabsTrigger key={item.id} value={item.id} className="px-3">

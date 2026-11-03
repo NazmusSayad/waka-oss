@@ -42,7 +42,7 @@ export function codeCharts(rows: ActivityRow[], files: FileRow[]) {
           },
           emphasis: { itemStyle: { color: cssColor('--accent') } },
         },
-        label: { color: cssColor('--background'), fontSize: 11 },
+        label: { color: cssColor('--foreground'), fontSize: 11 },
         upperLabel: {
           show: true,
           height: 20,
@@ -60,27 +60,27 @@ export function codeCharts(rows: ActivityRow[], files: FileRow[]) {
           },
           {
             itemStyle: {
-              borderColor: cssColor('--muted'),
+              borderColor: cssColor('--card'),
               borderWidth: 3,
               gapWidth: 1,
             },
-            colorSaturation: [0.35, 0.6],
+            colorAlpha: [0.45, 0.8],
           },
           {
             itemStyle: {
-              borderColorSaturation: 0.3,
+              borderColor: cssColor('--card'),
               borderWidth: 2,
               gapWidth: 1,
             },
-            colorSaturation: [0.3, 0.55],
+            colorAlpha: [0.4, 0.75],
           },
           {
             itemStyle: {
-              borderColorSaturation: 0.3,
+              borderColor: cssColor('--card'),
               borderWidth: 1,
               gapWidth: 1,
             },
-            colorSaturation: [0.3, 0.5],
+            colorAlpha: [0.35, 0.7],
           },
         ],
       },

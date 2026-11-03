@@ -93,7 +93,7 @@ function branchActivity(rows: ActivityRow[], range: Range) {
       show: false,
       min: 0,
       max: Math.max(1, ...cells.map((cell) => cell[2])),
-      inRange: { color: [cssColor('--chart-5')], colorAlpha: [0.25, 1] },
+      inRange: { color: [cssColor('--heat-low'), cssColor('--heat-high')] },
     },
     xAxis: {
       type: 'category',

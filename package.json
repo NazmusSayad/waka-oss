@@ -5,6 +5,10 @@
   "scripts": {
     "dev:server": "cargo run -p server",
     "dev:web": "pnpm --filter web dev",
-    "build": "pnpm --filter web build && cargo build --release -p server --target x86_64-unknown-linux-musl"
+    "build": "pnpm --filter web build && cargo build --release -p server --target x86_64-unknown-linux-musl",
+    "railway": "railway"
+  },
+  "devDependencies": {
+    "@railway/cli": "^5.71.0"
   }
 }

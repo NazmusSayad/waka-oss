@@ -31,14 +31,18 @@ export function BarList(props: {
           <button
             type="button"
             onClick={() => props.onSelect(item.key)}
-            className="group hover:bg-accent focus-visible:ring-ring/50 relative flex w-full items-center gap-3 rounded-md px-2 py-1 text-left text-xs focus-visible:ring-[3px] focus-visible:outline-none"
+            className="group hover:bg-accent focus-visible:ring-ring/50 relative flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-left text-xs focus-visible:ring-[3px] focus-visible:outline-none"
           >
             <span
-              className="absolute inset-y-0.5 left-0 rounded-sm opacity-20 group-hover:opacity-30"
+              className="absolute inset-y-0 left-0 rounded-md opacity-10 group-hover:opacity-20"
               style={{
                 width: `${max === 0 ? 0 : (item.seconds / max) * 100}%`,
                 background: colorFor(item.key),
               }}
+            />
+            <span
+              className="relative size-2 shrink-0 rounded-full"
+              style={{ background: colorFor(item.key) }}
             />
             <span
               className={cn(

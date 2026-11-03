@@ -40,7 +40,7 @@ function streaks(dayTotals: Map<string, number>, range: Range, today: string) {
 }
 
 export function dailyCharts(rows: ActivityRow[], range: Range, today: string) {
-  const heat = { color: [cssColor('--chart-1')], colorAlpha: [0.25, 1] }
+  const heat = { color: [cssColor('--heat-low'), cssColor('--heat-high')] }
   const dates = datesInRange(range)
   const dayTotals = groupSum(
     rows,
