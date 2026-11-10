@@ -123,27 +123,6 @@ export function parseUserAgent(userAgent: string) {
   return { os, editor: editor === undefined ? null : editor.toLowerCase() }
 }
 
-const forwardedHeaders = ['authorization', 'user-agent', 'content-type', 'x-machine-name', 'timezone']
-
-export function forwardApiUrl() {
-  const url = process.env.FORWARD_API_URL
-  if (url === undefined) {
-    return null
-  }
-  return url.replace(/\/+$/, '')
-}
-
-export function forward(method: string, url: string, headers: Headers, body: ArrayBuffer | null) {
-  const forwarded = new Headers()
-  for (const name of forwardedHeaders) {
-    const value = headers.get(name)
-    if (value !== null) {
-      forwarded.set(name, value)
-    }
-  }
-  return fetch(url, { method, headers: forwarded, body })
-}
-
 export function summaryTime(totalSeconds: number) {
   const whole = Math.trunc(totalSeconds)
   const hours = Math.trunc(whole / 3600)

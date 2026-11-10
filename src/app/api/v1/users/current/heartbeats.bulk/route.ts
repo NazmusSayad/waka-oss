@@ -1,13 +1,11 @@
-import { after } from 'next/server'
 import { db } from '@/server/db.ts'
-import { forward, forwardApiUrl, heartbeatsSchema, insertStatements } from '@/server/ingest.ts'
+import { heartbeatsSchema, insertStatements } from '@/server/ingest.ts'
 import { idleStatement, refreshStatements } from '@/server/rollups.ts'
 
 export async function POST(request: Request) {
-  const body = await request.arrayBuffer()
   let parsed: unknown
   try {
-    parsed = JSON.parse(new TextDecoder().decode(body))
+    parsed = await request.json()
   } catch (error) {
     return Response.json({ error: String(error) }, { status: 400 })
   }
@@ -30,21 +28,6 @@ export async function POST(request: Request) {
     for (let index = 0; index < heartbeats.length; index++) {
       ids.push(String(results[index * 2 + 1]?.rows[0]?.[0]))
     }
-  }
-
-  const base = forwardApiUrl()
-  if (base !== null) {
-    after(async () => {
-      const url = `${base}/users/current/heartbeats.bulk`
-      try {
-        const response = await forward('POST', url, request.headers, body)
-        if (!response.ok) {
-          console.error(`forward to ${url} returned ${response.status}`)
-        }
-      } catch (error) {
-        console.error(`forward to ${url} failed: ${String(error)}`)
-      }
-    })
   }
 
   return Response.json(
