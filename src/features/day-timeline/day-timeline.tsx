@@ -43,15 +43,15 @@ export function DayTimeline(props: {
     key: string
     message: string
   } | null>(null)
-  const key = `${props.date}|${props.status.server_time}`
+  const key = `${props.date}|${props.status.version}`
 
   useEffect(() => {
     const controller = new AbortController()
-    const requestKey = `${props.date}|${props.status.server_time}`
+    const requestKey = `${props.date}|${props.status.version}`
     async function load() {
       try {
         const response = await getJson<{ heartbeats: DayHeartbeat[] }>(
-          `/api/day?date=${props.date}`,
+          `/api/day?date=${props.date}&v=${props.status.version}`,
           controller.signal
         )
         setLoaded({ key: requestKey, heartbeats: response.heartbeats })
@@ -67,7 +67,7 @@ export function DayTimeline(props: {
     }
     void load()
     return () => controller.abort()
-  }, [props.date, props.status.server_time])
+  }, [props.date, props.status.version])
 
   const heartbeats = useMemo(
     () =>

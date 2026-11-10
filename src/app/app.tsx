@@ -87,18 +87,19 @@ export function App() {
         const status = await getJson<Status>('/api/status', controller.signal)
         const range = resolveRange(preset, customFrom, customTo, status)
         const previous = previousRange(range)
-        const query = `from=${range.from}&to=${range.to}`
+        const version = `v=${status.version}`
+        const query = `from=${range.from}&to=${range.to}&${version}`
         const responses = await Promise.all([
           getJson<{ rows: ActivityRow[] }>(
             `/api/activity?${query}`,
             controller.signal
           ),
           getJson<{ rows: ActivityRow[] }>(
-            `/api/activity?from=${previous.from}&to=${previous.to}`,
+            `/api/activity?from=${previous.from}&to=${previous.to}&${version}`,
             controller.signal
           ),
           getJson<{ rows: ActivityRow[] }>(
-            `/api/activity?from=${addDays(status.today, -59)}&to=${status.today}`,
+            `/api/activity?from=${addDays(status.today, -59)}&to=${status.today}&${version}`,
             controller.signal
           ),
           getJson<{ sessions: Session[] }>(

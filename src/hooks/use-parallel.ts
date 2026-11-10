@@ -11,7 +11,7 @@ type ParallelData = {
 export function useParallel(
   range: Range,
   filters: Filter[],
-  serverTime: number
+  version: string
 ) {
   const [loaded, setLoaded] = useState<{
     key: string
@@ -21,8 +21,7 @@ export function useParallel(
     key: string
     message: string
   } | null>(null)
-  const query = `from=${range.from}&to=${range.to}&filters=${encodeURIComponent(JSON.stringify(filters))}`
-  const key = `${query}|${serverTime}`
+  const query = `from=${range.from}&to=${range.to}&filters=${encodeURIComponent(JSON.stringify(filters))}&v=${version}`
 
   useEffect(() => {
     const controller = new AbortController()
@@ -32,24 +31,24 @@ export function useParallel(
           `/api/parallel?${query}`,
           controller.signal
         )
-        setLoaded({ key, data })
+        setLoaded({ key: query, data })
       } catch (error) {
         if (controller.signal.aborted) {
           return
         }
         setFailure({
-          key,
+          key: query,
           message: error instanceof Error ? error.message : String(error),
         })
       }
     }
     void load()
     return () => controller.abort()
-  }, [query, key])
+  }, [query])
 
   return {
     data: loaded === null ? null : loaded.data,
-    current: loaded?.key === key,
-    error: failure?.key === key ? failure.message : null,
+    current: loaded?.key === query,
+    error: failure?.key === query ? failure.message : null,
   }
 }

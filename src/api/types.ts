@@ -14,6 +14,7 @@ export type Status = {
     machine: string | null
   } | null
   idle_timeout_minutes: number
+  version: string
 }
 
 export type ActivityRow = {

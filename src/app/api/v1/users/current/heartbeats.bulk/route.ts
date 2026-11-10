@@ -1,6 +1,5 @@
 import { db } from '@/server/db.ts'
 import { heartbeatsSchema, insertStatements } from '@/server/ingest.ts'
-import { markDirtyStatement } from '@/server/rollups.ts'
 
 export async function POST(request: Request) {
   let parsed: unknown
@@ -18,11 +17,10 @@ export async function POST(request: Request) {
 
   const ids: string[] = []
   if (heartbeats.length > 0) {
-    const statements = [
-      ...heartbeats.flatMap((heartbeat) => insertStatements(heartbeat, machine)),
-      markDirtyStatement(Math.min(...heartbeats.map((heartbeat) => heartbeat.time))),
-    ]
-    const results = await db.batch(statements, 'write')
+    const results = await db.batch(
+      heartbeats.flatMap((heartbeat) => insertStatements(heartbeat, machine)),
+      'write'
+    )
     for (let index = 0; index < heartbeats.length; index++) {
       ids.push(String(results[index * 2 + 1]?.rows[0]?.[0]))
     }

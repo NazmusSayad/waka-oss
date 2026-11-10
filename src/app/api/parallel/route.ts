@@ -1,5 +1,5 @@
 import { db } from '@/server/db.ts'
-import { computeParallel, filtersSchema, parallelStatement, readDate } from '@/server/stats.ts'
+import { cacheControl, computeParallel, filtersSchema, parallelStatement, readDate } from '@/server/stats.ts'
 
 export async function GET(request: Request) {
   const params = new URL(request.url).searchParams
@@ -16,5 +16,5 @@ export async function GET(request: Request) {
   }
   const result = await db.execute(parallelStatement(from, to, filters))
   const heartbeats = result.rows.map((row): [number, number] => [Number(row[0]), Number(row[1])])
-  return Response.json(computeParallel(heartbeats, from, to))
+  return Response.json(computeParallel(heartbeats, from, to), { headers: { 'cache-control': cacheControl } })
 }

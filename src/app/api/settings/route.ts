@@ -8,11 +8,20 @@ export async function PUT(request: Request) {
   if (!result.success) {
     return Response.json({ error: 'idle_timeout_minutes must be between 1 and 120' }, { status: 400 })
   }
-  await db.execute({
-    sql: `UPDATE settings SET idle_timeout_minutes = ?1, dirty_from = (SELECT MIN(time) FROM heartbeats),
-      rebuilt_at = NULL
-      WHERE idle_timeout_minutes != ?1`,
-    args: [result.data.idle_timeout_minutes],
-  })
+  const args = [result.data.idle_timeout_minutes]
+  await db.batch(
+    [
+      {
+        sql: 'UPDATE heartbeats SET duration = NULL WHERE (SELECT idle_timeout_minutes FROM settings) != ?1',
+        args,
+      },
+      { sql: 'DELETE FROM sessions WHERE (SELECT idle_timeout_minutes FROM settings) != ?1', args },
+      {
+        sql: 'UPDATE settings SET idle_timeout_minutes = ?1, rebuilt_at = NULL WHERE idle_timeout_minutes != ?1',
+        args,
+      },
+    ],
+    'write'
+  )
   return new Response(null, { status: 204 })
 }

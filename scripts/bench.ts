@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { db, type Statement } from '../src/server/db.ts'
 import { requiredEnv } from '../src/server/env.ts'
 import { insertStatements, type Heartbeat } from '../src/server/ingest.ts'
-import { markDirtyStatement, rebuildStatements } from '../src/server/rollups.ts'
+import { rebuildStatements } from '../src/server/rollups.ts'
 import {
   activityStatement,
   computeParallel,
@@ -193,7 +193,7 @@ function shiftDate(date: string, days: number) {
 }
 
 const schema = readFileSync(new URL('../src/server/schema.sql', import.meta.url), 'utf8')
-const tables = ['heartbeats', 'activity', 'file_activity', 'dependency_activity', 'sessions', 'settings']
+const tables = ['heartbeats', 'activity', 'file_activity', 'dependency_activity', 'sessions', 'settings', 'rebuild_hours', 'rebuild_ranges']
 
 const existing = await db.execute('SELECT COUNT(*) FROM heartbeats')
 if (Number(existing.rows[0]?.[0]) !== 0) {
@@ -224,26 +224,13 @@ try {
   )
 
   const rebuild = async () => {
-    const state = (
-      await db.execute(`SELECT dirty_from, idle_timeout_minutes * 60.0,
-        (SELECT MIN(start) FROM sessions WHERE "end" >= settings.dirty_from - settings.idle_timeout_minutes * 60.0)
-        FROM settings`)
-    ).rows[0]
-    const dirtyFrom = Number(state?.[0])
-    const sessionFrom = state?.[2]
-    return pipeline(
-      [
-        ...rebuildStatements(dirtyFrom, Number(state?.[1]), typeof sessionFrom === 'number' ? sessionFrom : dirtyFrom),
-        { sql: 'UPDATE settings SET dirty_from = NULL', args: [] },
-      ],
-      true
-    )
+    const idle = Number((await db.execute('SELECT idle_timeout_minutes * 60.0 FROM settings')).rows[0]?.[0])
+    return pipeline(rebuildStatements(idle), true)
   }
   const report: Record<string, Record<string, number>> = {}
   const record = (label: string, run: Awaited<ReturnType<typeof pipeline>>) => {
     report[label] = { db_ms: Math.round(run.dbMs), rows_read: run.rowsRead, rows_written: run.rowsWritten }
   }
-  await db.execute('UPDATE settings SET dirty_from = (SELECT MIN(time) FROM heartbeats)')
   record('full rebuild (settings change)', await rebuild())
 
   let time = Number((await db.execute('SELECT MAX(time) FROM heartbeats')).rows[0]?.[0])
@@ -253,10 +240,7 @@ try {
       return fakeHeartbeat(time, pick(projects), 'live-session')
     })
     return pipeline(
-      [
-        ...batch.flatMap((heartbeat) => insertStatements(heartbeat, 'laptop')),
-        markDirtyStatement(batch[0]?.time ?? time),
-      ],
+      batch.flatMap((heartbeat) => insertStatements(heartbeat, 'laptop')),
       true
     )
   }

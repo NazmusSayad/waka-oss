@@ -27,13 +27,14 @@ CREATE TABLE heartbeats (
     machine TEXT,
     local_date TEXT NOT NULL,
     local_hour INTEGER NOT NULL,
-    duration REAL NOT NULL DEFAULT 0,
+    duration REAL,
     lane_duration REAL NOT NULL DEFAULT 0,
     UNIQUE (time, entity)
 );
 
 CREATE INDEX heartbeats_time ON heartbeats (time);
-CREATE INDEX heartbeats_local_date ON heartbeats (local_date);
+CREATE INDEX heartbeats_local_hour ON heartbeats (local_date, local_hour);
+CREATE INDEX heartbeats_pending ON heartbeats (time) WHERE duration IS NULL;
 
 CREATE TABLE activity (
     date TEXT NOT NULL,
@@ -55,7 +56,7 @@ CREATE TABLE activity (
     lane_seconds REAL NOT NULL DEFAULT 0
 );
 
-CREATE INDEX activity_date ON activity (date);
+CREATE INDEX activity_date ON activity (date, hour);
 
 CREATE TABLE file_activity (
     date TEXT NOT NULL,
@@ -94,12 +95,23 @@ CREATE TABLE sessions (
 );
 
 CREATE INDEX sessions_date ON sessions (date);
+CREATE INDEX sessions_start ON sessions (start);
 CREATE INDEX sessions_end ON sessions ("end");
 
 CREATE TABLE settings (
     idle_timeout_minutes INTEGER NOT NULL,
-    dirty_from REAL,
     rebuilt_at REAL
+);
+
+CREATE TABLE rebuild_hours (
+    date TEXT NOT NULL,
+    hour INTEGER NOT NULL,
+    PRIMARY KEY (date, hour)
+);
+
+CREATE TABLE rebuild_ranges (
+    start REAL NOT NULL,
+    "end" REAL NOT NULL
 );
 
 INSERT INTO settings (idle_timeout_minutes) VALUES (15);

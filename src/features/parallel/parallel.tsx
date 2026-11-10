@@ -39,7 +39,7 @@ export function Parallel(props: {
   const result = useParallel(
     props.range,
     props.filters,
-    props.status.server_time
+    props.status.version
   )
   const loaded = result.data
 

@@ -3,6 +3,8 @@ import { z } from 'zod'
 import type { Statement } from './db.ts'
 import { localTime } from './time.ts'
 
+export const cacheControl = 'private, max-age=31536000, immutable'
+
 const datePattern = /^\d{4}-\d{2}-\d{2}$/
 
 export function readDate(params: URLSearchParams, name: string) {
@@ -83,7 +85,7 @@ export function dependenciesStatement(from: string, to: string): Statement {
 export function dayStatement(date: string): Statement {
   return {
     sql: `SELECT json_object('heartbeats', json_group_array(json_object(
-        'time', time, 'duration', duration, 'entity', entity, 'type', type, 'category', category,
+        'time', time, 'duration', COALESCE(duration, 0), 'entity', entity, 'type', type, 'category', category,
         'project', project, 'branch', branch, 'language', language, 'editor', editor, 'machine', machine,
         'is_write', CASE WHEN is_write IS NULL THEN NULL WHEN is_write THEN json('true') ELSE json('false') END,
         'lineno', lineno, 'human_line_changes', human_line_changes, 'ai_line_changes', ai_line_changes

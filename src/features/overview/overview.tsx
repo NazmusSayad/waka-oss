@@ -81,7 +81,7 @@ export function Overview(props: {
   const parallel = useParallel(
     props.range,
     props.filters,
-    props.status.server_time
+    props.status.version
   )
   const recent = useMemo(
     () =>
