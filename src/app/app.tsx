@@ -235,7 +235,11 @@ export function App() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setReloadCount(reloadCount + 1)}
+              onClick={() => {
+                void fetch('/api/refresh', { method: 'POST' }).finally(() =>
+                  setReloadCount((count) => count + 1)
+                )
+              }}
               disabled={loading}
               className="ml-auto"
             >

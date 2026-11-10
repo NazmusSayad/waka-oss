@@ -98,7 +98,8 @@ CREATE INDEX sessions_end ON sessions ("end");
 
 CREATE TABLE settings (
     idle_timeout_minutes INTEGER NOT NULL,
-    dirty_from REAL
+    dirty_from REAL,
+    rebuilt_at REAL
 );
 
 INSERT INTO settings (idle_timeout_minutes) VALUES (15);

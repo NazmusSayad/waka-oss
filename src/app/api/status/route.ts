@@ -3,7 +3,7 @@ import { rebuildIfDirty } from '@/server/rollups.ts'
 import { localTime, timezone } from '@/server/time.ts'
 
 export async function GET() {
-  await rebuildIfDirty()
+  await rebuildIfDirty(30 * 60)
   const now = Date.now() / 1000
   const [first, last, settings] = await db.batch(
     [

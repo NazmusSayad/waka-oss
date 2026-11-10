@@ -8,9 +8,10 @@ export function markDirtyStatement(earliest: number): Statement {
   }
 }
 
-export async function rebuildIfDirty() {
+export async function rebuildIfDirty(minSecondsSinceLastRebuild: number) {
   const state = await db.execute(`SELECT dirty_from, idle_timeout_minutes * 60.0,
-      (SELECT MIN(start) FROM sessions WHERE "end" >= settings.dirty_from - settings.idle_timeout_minutes * 60.0)
+      (SELECT MIN(start) FROM sessions WHERE "end" >= settings.dirty_from - settings.idle_timeout_minutes * 60.0),
+      rebuilt_at
     FROM settings`)
   const row = state.rows[0]
   const dirtyFrom = row?.[0]
@@ -20,12 +21,18 @@ export async function rebuildIfDirty() {
   if (typeof dirtyFrom !== 'number') {
     throw new Error('settings row is missing')
   }
+  const now = Date.now() / 1000
+  const rebuiltAt = row?.[3]
+  if (typeof rebuiltAt === 'number' && now - rebuiltAt < minSecondsSinceLastRebuild) {
+    return
+  }
   const idle = Number(row?.[1])
   const sessionFrom = row?.[2]
   await db.batch(
     [
       ...rebuildStatements(dirtyFrom, idle, typeof sessionFrom === 'number' ? sessionFrom : dirtyFrom),
       { sql: 'UPDATE settings SET dirty_from = NULL WHERE dirty_from = ?1', args: [dirtyFrom] },
+      { sql: 'UPDATE settings SET rebuilt_at = ?1', args: [now] },
     ],
     'write'
   )
