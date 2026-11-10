@@ -6,3 +6,7 @@ apps/web/dist/
 *.db-shm
 .env
 .playwright/
+.next/
+next-env.d.ts
+*.tsbuildinfo
+.vercel

@@ -9,12 +9,12 @@ use axum::{
     Router,
     extract::{Request, State},
     http::{
-        HeaderValue, StatusCode, Uri,
-        header::{AUTHORIZATION, CONTENT_TYPE, WWW_AUTHENTICATE},
+        StatusCode, Uri,
+        header::{AUTHORIZATION, CONTENT_TYPE},
     },
     middleware::{self, Next},
     response::{IntoResponse, Response},
-    routing::{any, get, post},
+    routing::{any, get, post, put},
 };
 use base64::{Engine, engine::general_purpose::STANDARD};
 use chrono_tz::Tz;
@@ -30,7 +30,6 @@ pub struct AppState {
     pub db: SqlitePool,
     pub tz: Tz,
     pub api_key: String,
-    pub dashboard_password: String,
     pub forward_api_url: Option<String>,
     pub http: reqwest::Client,
 }
@@ -98,7 +97,6 @@ async fn main() {
 
     let port: u16 = required_env("PORT").parse().expect("PORT must be a port number");
     let api_key = required_env("WAKATIME_API_KEY");
-    let dashboard_password = required_env("DASHBOARD_PASSWORD");
     let forward_api_url = match env::var("FORWARD_API_URL") {
         Ok(url) => Some(url.trim_end_matches('/').to_string()),
         Err(env::VarError::NotPresent) => None,
@@ -109,7 +107,6 @@ async fn main() {
         db,
         tz,
         api_key,
-        dashboard_password,
         forward_api_url,
         http: reqwest::Client::new(),
     };
@@ -122,13 +119,14 @@ async fn main() {
 
     let dashboard_routes = Router::new()
         .route("/api/status", get(stats::status))
+        .route("/api/settings", put(stats::update_settings))
         .route("/api/activity", get(stats::activity))
         .route("/api/sessions", get(stats::sessions))
         .route("/api/files", get(stats::files))
         .route("/api/dependencies", get(stats::dependencies))
         .route("/api/day", get(stats::day))
-        .fallback(ui)
-        .layer(middleware::from_fn_with_state(state.clone(), dashboard_auth));
+        .route("/api/parallel", get(stats::parallel))
+        .fallback(ui);
 
     let app = ingest_routes
         .merge(dashboard_routes)
@@ -159,25 +157,6 @@ async fn ingest_auth(State(state): State<AppState>, request: Request, next: Next
     };
     if key.as_deref() != Some(state.api_key.as_str()) {
         return (StatusCode::UNAUTHORIZED, "invalid api key").into_response();
-    }
-    next.run(request).await
-}
-
-async fn dashboard_auth(State(state): State<AppState>, request: Request, next: Next) -> Response {
-    let password = request
-        .headers()
-        .get(AUTHORIZATION)
-        .and_then(|value| value.to_str().ok())
-        .and_then(|value| value.strip_prefix("Basic "))
-        .and_then(|encoded| STANDARD.decode(encoded).ok())
-        .and_then(|bytes| String::from_utf8(bytes).ok())
-        .and_then(|credentials| credentials.split_once(':').map(|(_, p)| p.to_string()));
-    if password.as_deref() != Some(state.dashboard_password.as_str()) {
-        return (
-            StatusCode::UNAUTHORIZED,
-            [(WWW_AUTHENTICATE, HeaderValue::from_static("Basic realm=\"waka\""))],
-        )
-            .into_response();
     }
     next.run(request).await
 }

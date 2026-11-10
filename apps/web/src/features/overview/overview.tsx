@@ -7,7 +7,8 @@ import { EmptyState } from '@/components/empty-state'
 import { Panel } from '@/components/panel'
 import { Stat, StatGrid } from '@/components/stat'
 import type { Dimension } from '@/constants/dimensions'
-import type { Range } from '@/types/dashboard'
+import { useParallel } from '@/hooks/use-parallel'
+import type { Filter, Range } from '@/types/dashboard'
 import { groupSum, sortedEntries, sum } from '@/utils/aggregate'
 import {
   bucketOf,
@@ -17,7 +18,7 @@ import {
 } from '@/utils/buckets'
 import { colorFor, cssColor } from '@/utils/colors'
 import { addDays, daysBetween, formatRange, previousRange } from '@/utils/date'
-import { formatDuration, label } from '@/utils/format'
+import { formatDuration, formatPercent, label } from '@/utils/format'
 import { hoursAxis } from '@/utils/hours-axis'
 
 function totalBetween(totals: Map<string, number>, from: string, to: string) {
@@ -41,6 +42,11 @@ function breakdown(
     (row) => row[dimension],
     (row) => row.seconds
   )
+  const lanes = groupSum(
+    rows,
+    (row) => row[dimension],
+    (row) => row.lane_seconds
+  )
   return sortedEntries(
     groupSum(
       rows,
@@ -50,6 +56,7 @@ function breakdown(
   ).map((entry) => ({
     key: entry[0],
     seconds: entry[1],
+    laneSeconds: lanes.get(entry[0]) ?? 0,
     previous: compare ? (previous.get(entry[0]) ?? 0) : null,
   }))
 }
@@ -66,10 +73,16 @@ export function Overview(props: {
   recentRows: ActivityRow[]
   range: Range
   compare: boolean
+  filters: Filter[]
   onFilter: (dimension: Dimension, value: string | null) => void
   onOpenDay: (date: string) => void
 }) {
   const today = props.status.today
+  const parallel = useParallel(
+    props.range,
+    props.filters,
+    props.status.server_time
+  )
   const recent = useMemo(
     () =>
       groupSum(
@@ -81,6 +94,7 @@ export function Overview(props: {
   )
   const total = sum(props.rows, (row) => row.seconds)
   const previousTotal = sum(props.previousRows, (row) => row.seconds)
+  const laneTotal = sum(props.rows, (row) => row.lane_seconds)
   const days = daysBetween(props.range.from, props.range.to) + 1
   const activeDays = new Set(
     props.rows.filter((row) => row.seconds > 0).map((row) => row.date)
@@ -179,7 +193,10 @@ export function Overview(props: {
   }, [props.rows, props.previousRows, props.range, props.compare])
 
   const last = props.status.last_heartbeat
-  const workingNow = last !== null && props.status.server_time - last.time < 900
+  const workingNow =
+    last !== null &&
+    props.status.server_time - last.time <
+      props.status.idle_timeout_minutes * 60
 
   const periods = [
     {
@@ -287,6 +304,18 @@ export function Overview(props: {
               formatRange(props.range)
             )
           }
+        />
+        <Stat
+          label="Across lanes"
+          value={formatDuration(laneTotal)}
+          detail={`${total === 0 ? '—' : `${(laneTotal / total).toFixed(2)}×`} time · ${
+            parallel.current && parallel.data !== null
+              ? formatPercent(
+                  sum(parallel.data.hours, (hour) => hour.parallel_seconds),
+                  sum(parallel.data.hours, (hour) => hour.wall_seconds)
+                )
+              : '…'
+          } with 2+ lanes`}
         />
         <Stat
           label="Daily average"

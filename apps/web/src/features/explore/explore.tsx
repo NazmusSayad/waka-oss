@@ -76,6 +76,11 @@ export function Explore(props: {
       (row) => row[dimension],
       (row) => row.seconds
     )
+    const lanes = groupSum(
+      props.rows,
+      (row) => row[dimension],
+      (row) => row.lane_seconds
+    )
     const total = sum(entries, (entry) => entry[1])
     const slices = topSlices(entries, 8)
     const topKeys = slices
@@ -156,6 +161,7 @@ export function Explore(props: {
       items: entries.map((entry) => ({
         key: entry[0],
         seconds: entry[1],
+        laneSeconds: lanes.get(entry[0]) ?? 0,
         previous: props.compare ? (previous.get(entry[0]) ?? 0) : null,
       })),
       donut,

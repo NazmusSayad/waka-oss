@@ -6,6 +6,7 @@ import { formatDuration, formatPercent, label } from '@/utils/format'
 export type BarItem = {
   key: string | null
   seconds: number
+  laneSeconds: number
   previous: number | null
 }
 
@@ -26,6 +27,12 @@ export function BarList(props: {
   }
   return (
     <ul className="space-y-0.5">
+      <li className="text-muted-foreground flex items-center gap-2.5 px-2.5 text-[11px]">
+        <span className="flex-1" />
+        <span className="w-16 text-right">Time</span>
+        <span className="text-chart-3 w-20 text-right">Across lanes</span>
+        {visible[0]?.previous !== null && <span className="w-28" />}
+      </li>
       {visible.map((item) => (
         <li key={item.key ?? '\u0000'}>
           <button
@@ -57,6 +64,9 @@ export function BarList(props: {
             </span>
             <span className="relative w-16 text-right tabular-nums">
               {formatDuration(item.seconds)}
+            </span>
+            <span className="text-chart-3 relative w-20 text-right tabular-nums">
+              {formatDuration(item.laneSeconds)}
             </span>
             {item.previous !== null && (
               <span className="relative w-28 text-right text-[11px] whitespace-nowrap">

@@ -10,6 +10,7 @@ export const views = [
   { id: 'timeline', label: 'Day timeline' },
   { id: 'code', label: 'Code' },
   { id: 'ai', label: 'AI vs human' },
+  { id: 'parallel', label: 'Parallel' },
   { id: 'branches', label: 'Branches' },
 ] as const
 

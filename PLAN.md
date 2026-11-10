@@ -16,7 +16,6 @@ Browser (React dashboard) ──GET /api/...──► Rust server: SQL aggregati
 - **Database:** SQLite, a single file (`data.db`) next to the server program. It was picked over Postgres for speed: it runs inside the server process, so queries skip the network round trip to a separate Postgres server. With one person's data, that makes it as fast or faster. For more speed it uses WAL mode, `synchronous=NORMAL`, and indexes that cover the dashboard queries.
 - **Frontend:** Vite, React, TypeScript and ECharts.
 - **Deployment:** one program file that contains the server and the built UI, plus `data.db`. No Docker and no separate database server. A Dockerfile can be added later if a host only accepts containers.
-- **Dashboard protection:** HTTP Basic auth on the dashboard and `/api/*` routes. The password comes from the `DASHBOARD_PASSWORD` environment variable, and the browser shows its own login prompt, so no login UI is needed.
 - **Ingest protection:** the `/api/v1/*` routes check the API key that wakatime-cli sends against `WAKATIME_API_KEY`.
 
 ## Monorepo layout
@@ -81,7 +80,6 @@ Dashboard routes read only these tables, and SQLite builds the JSON response its
 | `DATABASE_PATH` | SQLite file path, created if missing |
 | `TIMEZONE` | IANA timezone used for `local_date` / `local_hour`, e.g. `Asia/Dhaka` |
 | `WAKATIME_API_KEY` | Key wakatime-cli must send |
-| `DASHBOARD_PASSWORD` | Password for the dashboard (any username) |
 | `FORWARD_API_URL` | Optional. Base URL heartbeats are forwarded to, same format as wakatime-cli's `api_url` (e.g. `https://api.wakatime.com/api/v1` or `https://wakapi.dev/api`). When unset, nothing is forwarded and pass-through routes return 404. |
 
 ### Ingest routes (wakatime-cli, `api_url = http(s)://<host>/api/v1`)
@@ -95,8 +93,6 @@ Auth: `Authorization: Basic base64(<key>)` (what wakatime-cli sends) or `Authori
 | any other `/api/v1/*` | Passed to `FORWARD_API_URL` + the rest of the path and query, with method, body and the same headers; the response is returned as-is. |
 
 ### Dashboard routes
-
-Auth: HTTP Basic, any username, password `DASHBOARD_PASSWORD`. Missing or wrong → `401` with `WWW-Authenticate: Basic realm="waka"`. Applies to `/api/*` (except `/api/v1/*`) and to the UI.
 
 Dates are local dates (`YYYY-MM-DD`) in `TIMEZONE`; `from` and `to` are both inclusive. Times are unix seconds (float). Missing string values are `null`.
 

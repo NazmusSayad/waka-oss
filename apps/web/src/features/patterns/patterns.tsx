@@ -155,7 +155,7 @@ export function Patterns(props: {
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel
           title="Session lengths"
-          description="Sessions end after 15 minutes without a heartbeat"
+          description={`Sessions end after ${props.status.idle_timeout_minutes} minutes without a heartbeat`}
         >
           <Chart option={sessionStats.histogram} height={220} />
         </Panel>

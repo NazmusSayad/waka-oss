@@ -38,7 +38,9 @@ import { Code } from '@/features/code'
 import { DayTimeline } from '@/features/day-timeline'
 import { Explore } from '@/features/explore'
 import { Overview } from '@/features/overview'
+import { Parallel } from '@/features/parallel'
 import { Patterns } from '@/features/patterns'
+import { Settings } from '@/features/settings'
 import { cn } from '@/lib/utils'
 import type { Range } from '@/types/dashboard'
 import { addDays, formatRange, previousRange } from '@/utils/date'
@@ -240,6 +242,12 @@ export function App() {
               <RefreshCw className={cn(loading && 'animate-spin')} />
               Refresh
             </Button>
+            {loaded !== null && (
+              <Settings
+                idleTimeoutMinutes={loaded.status.idle_timeout_minutes}
+                onSaved={() => setReloadCount(reloadCount + 1)}
+              />
+            )}
           </div>
           <div className="border-t">
             <div className="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-4 gap-y-2 px-6 py-2">
@@ -404,6 +412,7 @@ export function App() {
                     recentRows={filtered.recentRows}
                     range={loaded.range}
                     compare={compare}
+                    filters={filters}
                     onFilter={addFilter}
                     onOpenDay={openDay}
                   />
@@ -453,6 +462,14 @@ export function App() {
                     range={loaded.range}
                     filters={filters}
                     onFilter={addFilter}
+                  />
+                </TabsContent>
+                <TabsContent value="parallel">
+                  <Parallel
+                    status={loaded.status}
+                    range={loaded.range}
+                    filters={filters}
+                    onOpenDay={openDay}
                   />
                 </TabsContent>
                 <TabsContent value="branches">

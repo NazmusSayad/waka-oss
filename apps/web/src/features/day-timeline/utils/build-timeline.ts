@@ -37,7 +37,11 @@ function richSafe(text: string) {
   return text.replace(/[{}|]/g, '')
 }
 
-export function buildTimeline(heartbeats: DayHeartbeat[], timeZone: string) {
+export function buildTimeline(
+  heartbeats: DayHeartbeat[],
+  timeZone: string,
+  idleTimeoutMinutes: number
+) {
   const projectTotals = sortedEntries(
     groupSum(
       heartbeats,
@@ -104,7 +108,7 @@ export function buildTimeline(heartbeats: DayHeartbeat[], timeZone: string) {
     if (
       previous === null ||
       current === undefined ||
-      heartbeat.time - previous.time > 900
+      heartbeat.time - previous.time > idleTimeoutMinutes * 60
     ) {
       sessions.push({
         start: heartbeat.time,

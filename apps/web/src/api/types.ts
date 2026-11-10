@@ -13,6 +13,7 @@ export type Status = {
     editor: string | null
     machine: string | null
   } | null
+  idle_timeout_minutes: number
 }
 
 export type ActivityRow = {
@@ -32,6 +33,7 @@ export type ActivityRow = {
   ai_lines: number
   ai_input_tokens: number
   ai_output_tokens: number
+  lane_seconds: number
 }
 
 export type Session = {
@@ -79,4 +81,18 @@ export type DayHeartbeat = {
   lineno: number | null
   human_line_changes: number | null
   ai_line_changes: number | null
+}
+
+export type ParallelHour = {
+  date: string
+  hour: number
+  wall_seconds: number
+  lane_seconds: number
+  parallel_seconds: number
+  peak_lanes: number
+}
+
+export type ParallelLevel = {
+  lanes: number
+  seconds: number
 }

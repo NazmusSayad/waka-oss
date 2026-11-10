@@ -86,8 +86,13 @@ export function DayTimeline(props: {
     [loaded, props.filters]
   )
   const timeline = useMemo(
-    () => buildTimeline(heartbeats, props.status.timezone),
-    [heartbeats, props.status.timezone]
+    () =>
+      buildTimeline(
+        heartbeats,
+        props.status.timezone,
+        props.status.idle_timeout_minutes
+      ),
+    [heartbeats, props.status.timezone, props.status.idle_timeout_minutes]
   )
 
   const loading = loaded?.key !== key && failure?.key !== key
@@ -267,7 +272,7 @@ export function DayTimeline(props: {
           {timeline.breaks.length > 0 && (
             <Panel
               title="Breaks"
-              description="Gaps longer than 15 minutes between heartbeats"
+              description={`Gaps longer than ${props.status.idle_timeout_minutes} minutes between heartbeats`}
             >
               <ul className="flex flex-wrap gap-x-6 gap-y-1 text-xs tabular-nums">
                 {timeline.breaks.map((item) => (
