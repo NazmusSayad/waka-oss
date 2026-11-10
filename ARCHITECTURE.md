@@ -5,8 +5,7 @@ We organize code by business features, not just file types.
 
 ```text
 ├── src/
-│   ├── main.tsx       # Entry point: global CSS + renders the app shell
-│   ├── app/           # App shell: navigation, date range, compare, filters, data loading, URL state
+│   ├── app/           # Next.js routes (page, layout, API) + the dashboard shell: navigation, date range, compare, filters, data loading, URL state
 │   ├── features/      # Self-contained views, one folder each
 │   │   └── overview/  # Example feature folder
 │   │       ├── index.ts        # ONLY export what's needed
@@ -20,8 +19,8 @@ We organize code by business features, not just file types.
 │   ├── types/         # Global TS types
 │   ├── styles/        # Global CSS (Tailwind + shadcn theme variables)
 │   ├── constants/     # Global static values
-│   └── api/           # API contract types and fetch helper
-└── vite.config.ts     # Dev proxy to the Rust server and the `@` alias
+│   ├── api/           # API contract types and fetch helper
+│   └── server/        # Server code: database, ingest, rollups, stats queries
 ```
 
 ## The Rules
