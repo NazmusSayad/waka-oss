@@ -1,7 +1,9 @@
 import { db } from '@/server/db.ts'
+import { rebuildIfDirty } from '@/server/rollups.ts'
 import { localTime, timezone } from '@/server/time.ts'
 
 export async function GET() {
+  await rebuildIfDirty()
   const now = Date.now() / 1000
   const [first, last, settings] = await db.batch(
     [

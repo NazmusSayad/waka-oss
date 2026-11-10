@@ -94,9 +94,11 @@ CREATE TABLE sessions (
 );
 
 CREATE INDEX sessions_date ON sessions (date);
+CREATE INDEX sessions_end ON sessions ("end");
 
 CREATE TABLE settings (
-    idle_timeout_minutes INTEGER NOT NULL
+    idle_timeout_minutes INTEGER NOT NULL,
+    dirty_from REAL
 );
 
 INSERT INTO settings (idle_timeout_minutes) VALUES (15);

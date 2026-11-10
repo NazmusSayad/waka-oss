@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { db, type Statement } from '../src/server/db.ts'
 import { requiredEnv } from '../src/server/env.ts'
 import { insertStatements, type Heartbeat } from '../src/server/ingest.ts'
-import { idleStatement, rangeStatement, refreshStatements } from '../src/server/rollups.ts'
+import { markDirtyStatement, rebuildStatements } from '../src/server/rollups.ts'
 import {
   activityStatement,
   computeParallel,
@@ -223,44 +223,54 @@ try {
     `loaded ${heartbeats.length} fake heartbeats (${Math.round(heartbeats.length / 365)}/day) in ${((performance.now() - loadStarted) / 1000).toFixed(0)}s`
   )
 
-  const idle = Number((await db.execute(idleStatement)).rows[0]?.[0])
-  const range = (await db.execute(rangeStatement)).rows[0]
-  const full = await pipeline(refreshStatements(Number(range?.[0]), Number(range?.[1]), idle), true)
-  const report: Record<string, Record<string, number>> = {}
-  report['full rebuild (settings change)'] = {
-    db_ms: Math.round(full.dbMs),
-    rows_read: full.rowsRead,
-    rows_written: full.rowsWritten,
-  }
-
-  let time = Number(range?.[1])
-  const single: Awaited<ReturnType<typeof pipeline>>[] = []
-  for (let index = 0; index < 20; index++) {
-    time += 8
-    const heartbeat = fakeHeartbeat(time, pick(projects), 'live-session')
-    single.push(
-      await pipeline([...insertStatements(heartbeat, 'laptop'), ...refreshStatements(time, time, idle)], true)
+  const rebuild = async () => {
+    const state = (
+      await db.execute(`SELECT dirty_from, idle_timeout_minutes * 60.0,
+        (SELECT MIN(start) FROM sessions WHERE "end" >= settings.dirty_from - settings.idle_timeout_minutes * 60.0)
+        FROM settings`)
+    ).rows[0]
+    const dirtyFrom = Number(state?.[0])
+    const sessionFrom = state?.[2]
+    return pipeline(
+      [
+        ...rebuildStatements(dirtyFrom, Number(state?.[1]), typeof sessionFrom === 'number' ? sessionFrom : dirtyFrom),
+        { sql: 'UPDATE settings SET dirty_from = NULL', args: [] },
+      ],
+      true
     )
   }
-  const average = (values: number[]) => Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
-  report['ingest: 1 heartbeat (avg of 20)'] = {
-    db_ms: average(single.map((run) => run.dbMs)),
-    rows_read: average(single.map((run) => run.rowsRead)),
-    rows_written: average(single.map((run) => run.rowsWritten)),
+  const report: Record<string, Record<string, number>> = {}
+  const record = (label: string, run: Awaited<ReturnType<typeof pipeline>>) => {
+    report[label] = { db_ms: Math.round(run.dbMs), rows_read: run.rowsRead, rows_written: run.rowsWritten }
   }
-  const bulk = Array.from({ length: 25 }, () => {
-    time += 8
-    return fakeHeartbeat(time, pick(projects), 'live-session')
-  })
-  const bulkRun = await pipeline(
-    [...bulk.flatMap((heartbeat) => insertStatements(heartbeat, 'laptop')), ...refreshStatements(bulk[0]?.time ?? time, time, idle)],
-    true
-  )
-  report['ingest: 25 heartbeats (offline sync)'] = {
-    db_ms: Math.round(bulkRun.dbMs),
-    rows_read: bulkRun.rowsRead,
-    rows_written: bulkRun.rowsWritten,
+  await db.execute('UPDATE settings SET dirty_from = (SELECT MIN(time) FROM heartbeats)')
+  record('full rebuild (settings change)', await rebuild())
+
+  let time = Number((await db.execute('SELECT MAX(time) FROM heartbeats')).rows[0]?.[0])
+  const ingest = (count: number) => {
+    const batch = Array.from({ length: count }, () => {
+      time += 8
+      return fakeHeartbeat(time, pick(projects), 'live-session')
+    })
+    return pipeline(
+      [
+        ...batch.flatMap((heartbeat) => insertStatements(heartbeat, 'laptop')),
+        markDirtyStatement(batch[0]?.time ?? time),
+      ],
+      true
+    )
   }
+  record('ingest: 1 heartbeat', await ingest(1))
+  record('ingest: 25 heartbeats (offline sync)', await ingest(25))
+  record('rebuild after 26 new heartbeats', await rebuild())
+  for (let index = 0; index < 225; index++) {
+    await ingest(1)
+  }
+  record('rebuild after 30 min of coding (225 heartbeats)', await rebuild())
+  time = Number((await db.execute('SELECT MIN(time) FROM heartbeats WHERE local_date = ?', [localTime(now - 2 * 86400).date])).rows[0]?.[0]) + 60
+  await ingest(1)
+  record('rebuild after a late heartbeat from 2 days ago', await rebuild())
+  console.table(report)
 
   const today = localTime(now).date
   const ranges = [
