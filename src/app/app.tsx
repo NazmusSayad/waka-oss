@@ -1,4 +1,4 @@
-import { CircleAlert, RefreshCw, X } from 'lucide-react'
+import { CircleAlert, LogOut, RefreshCw, X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { getJson } from '@/api/get-json'
 import type {
@@ -41,6 +41,7 @@ import { Overview } from '@/features/overview'
 import { Parallel } from '@/features/parallel'
 import { Patterns } from '@/features/patterns'
 import { Settings } from '@/features/settings'
+import { useAuth } from '@/hooks/use-auth'
 import { cn } from '@/lib/utils'
 import type { Range } from '@/types/dashboard'
 import { addDays, formatRange, previousRange } from '@/utils/date'
@@ -253,6 +254,14 @@ export function App() {
                 onSaved={() => setReloadCount(reloadCount + 1)}
               />
             )}
+            <Button
+              variant="outline"
+              size="icon-sm"
+              aria-label="Log out"
+              onClick={() => void useAuth.getState().logout()}
+            >
+              <LogOut />
+            </Button>
           </div>
           <div className="border-t">
             <div className="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-4 gap-y-2 px-6 py-2">

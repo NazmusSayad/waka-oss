@@ -1,22 +1,20 @@
 # WakaTime Deep Analytics — Plan
 
-Personal coding analytics that run on any server. The app receives heartbeats directly from `wakatime-cli`, stores every field, and forwards each heartbeat to WakaTime. Its dashboard goes deeper than WakaTime or Wakapi. Reloading the page shows the latest data.
+Personal coding analytics that run on any server. The app receives heartbeats directly from `wakatime-cli` and stores every field. Its dashboard goes deeper than WakaTime or Wakapi. Reloading the page shows the latest data.
 
 ## Architecture
 
 ```
 Editor plugins → wakatime-cli ──POST──► Rust server /api/v1/... ──► SQLite (raw heartbeats)
-                                          │
-                                          └─ background task ─► api.wakatime.com (forward)
 
 Browser (React dashboard) ──GET /api/...──► Rust server: SQL aggregation → JSON
 ```
 
-- **Backend:** Rust, using `axum`, `tokio`, `sqlx` with SQLite (including its migrations), `reqwest` with `rustls` for forwarding (no OpenSSL, which keeps the `musl` build simple), `chrono-tz` for timezones, and `rust-embed` to build the UI into the server program.
+- **Backend:** Rust, using `axum`, `tokio`, `sqlx` with SQLite (including its migrations), `chrono-tz` for timezones, and `rust-embed` to build the UI into the server program.
 - **Database:** SQLite, a single file (`data.db`) next to the server program. It was picked over Postgres for speed: it runs inside the server process, so queries skip the network round trip to a separate Postgres server. With one person's data, that makes it as fast or faster. For more speed it uses WAL mode, `synchronous=NORMAL`, and indexes that cover the dashboard queries.
 - **Frontend:** Vite, React, TypeScript and ECharts.
 - **Deployment:** one program file that contains the server and the built UI, plus `data.db`. No Docker and no separate database server. A Dockerfile can be added later if a host only accepts containers.
-- **Ingest protection:** the `/api/v1/*` routes check the API key that wakatime-cli sends against `WAKATIME_API_KEY`.
+- **Ingest protection:** the `/api/v1/*` routes check the API key that wakatime-cli sends against `API_KEY`. The same key logs in to the dashboard.
 
 ## Monorepo layout
 
@@ -79,8 +77,7 @@ Dashboard routes read only these tables, and SQLite builds the JSON response its
 | `PORT` | HTTP port |
 | `DATABASE_PATH` | SQLite file path, created if missing |
 | `TIMEZONE` | IANA timezone used for `local_date` / `local_hour`, e.g. `Asia/Dhaka` |
-| `WAKATIME_API_KEY` | Key wakatime-cli must send |
-| `FORWARD_API_URL` | Optional. Base URL heartbeats are forwarded to, same format as wakatime-cli's `api_url` (e.g. `https://api.wakatime.com/api/v1` or `https://wakapi.dev/api`). When unset, nothing is forwarded and pass-through routes return 404. |
+| `API_KEY` | Key wakatime-cli must send and the dashboard login key |
 
 ### Ingest routes (wakatime-cli, `api_url = http(s)://<host>/api/v1`)
 
@@ -88,9 +85,8 @@ Auth: `Authorization: Basic base64(<key>)` (what wakatime-cli sends) or `Authori
 
 | Route | Behavior |
 |---|---|
-| `POST /api/v1/users/current/heartbeats.bulk` | Body: JSON array of heartbeats. Store with `INSERT OR IGNORE`, then forward the original body and the `Authorization`, `User-Agent`, `X-Machine-Name` and `Timezone` headers to `FORWARD_API_URL` + `/users/current/heartbeats.bulk` in a background task. Reply `202` with `{"responses": [[{"data": {"id": "<id>"}}, 201], ...]}`, one entry per heartbeat, in order. |
+| `POST /api/v1/users/current/heartbeats.bulk` | Body: JSON array of heartbeats. Store with `INSERT OR IGNORE`. Reply `202` with `{"responses": [[{"data": {"id": "<id>"}}, 201], ...]}`, one entry per heartbeat, in order. |
 | `GET /api/v1/users/current/statusbar/today` | WakaTime summary shape built from our own data: `{"cached_at", "data": {"grand_total": {"decimal", "digital", "hours", "minutes", "text", "total_seconds"}, "categories": [{"name", "percent", "decimal", "digital", "hours", "minutes", "seconds", "text", "total_seconds"}], "projects": [], "languages": [], "editors": [], "machines": [], "operating_systems": [], "dependencies": [], "range": {"date", "start", "end", "text", "timezone"}}, "has_team_features": false}`. `text` looks like `3 hrs 12 mins`. |
-| any other `/api/v1/*` | Passed to `FORWARD_API_URL` + the rest of the path and query, with method, body and the same headers; the response is returned as-is. |
 
 ### Dashboard routes
 
@@ -189,7 +185,7 @@ Everything else that isn't `/api/*` serves the embedded UI, with `index.html` fo
 1. **Scaffold:** set up the monorepo layout, the root scripts, the Rust crate with config from environment variables (see Configuration), and the SQLite migration. Then set up the Vite and React app with the `/api` proxy.
 2. **Ingest:**
    - Add the bulk heartbeat route, the API key check and the user-agent parsing.
-   - Store the heartbeats, forward them, and add `statusbar/today` and the pass-through route.
+   - Store the heartbeats and add `statusbar/today`.
    - Test by pointing `~/.wakatime.cfg` at the local server and coding for a few minutes.
 3. **Stats API:** write the SQL for durations and sessions, then the `activity`, `sessions`, `files` and `day` endpoints.
 4. **Dashboard:** build the layout and global controls, then views 1 to 7.
@@ -200,6 +196,5 @@ Everything else that isn't `/api/*` serves the embedded UI, with `index.html` fo
 ## Open items and risks
 
 - **Always on:** the server should run all the time. If it's down, wakatime-cli keeps heartbeats in its offline queue and resends them later, so short outages lose no data.
-- **Forwarding:** if WakaTime is down when a heartbeat arrives, that heartbeat is missing on WakaTime's side only.
 - **One timezone:** days are split using the timezone in `TIMEZONE`. While you travel, days still follow your home timezone.
 - **Check during step 2:** whether `human_line_changes` and `ai_line_changes` are net or total changes.
