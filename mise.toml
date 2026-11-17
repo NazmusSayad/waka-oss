@@ -1,0 +1,2 @@
+[tools]
+libsql-server = { version = "0.24.32", version_prefix = "libsql-server-v" }

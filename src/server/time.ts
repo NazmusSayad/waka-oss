@@ -1,6 +1,6 @@
-import { requiredEnv } from './env.ts'
+import { env } from '../env.ts'
 
-export const timezone = requiredEnv('TIMEZONE')
+export const timezone = env.TIMEZONE
 
 const formatter = new Intl.DateTimeFormat('en-CA', {
   timeZone: timezone,

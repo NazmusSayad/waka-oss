@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers'
 import { z } from 'zod'
-import { requiredEnv } from '@/server/env.ts'
+import { env } from '@/env.ts'
 import { createSession, sessionCookie, sessionMaxAgeSeconds } from '@/server/session.ts'
 
 const loginSchema = z.object({ key: z.string() })
@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   if (!result.success) {
     return Response.json({ error: 'key is required' }, { status: 400 })
   }
-  if (result.data.key !== requiredEnv('API_KEY')) {
+  if (result.data.key !== env.API_KEY) {
     return Response.json({ error: 'wrong key' }, { status: 401 })
   }
   const cookieStore = await cookies()

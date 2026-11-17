@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { requiredEnv } from '@/server/env.ts'
+import { env } from '@/env.ts'
 import { isValidSession, sessionCookie } from '@/server/session.ts'
 
 function decodeBasic(header: string | null) {
@@ -15,7 +15,7 @@ export function proxy(request: NextRequest) {
     const header = request.headers.get('authorization')
     const key =
       header !== null && header.startsWith('Bearer ') ? header.slice('Bearer '.length) : decodeBasic(header)
-    if (key !== requiredEnv('API_KEY')) {
+    if (key !== env.API_KEY) {
       return new NextResponse('invalid api key', { status: 401 })
     }
     return NextResponse.next()

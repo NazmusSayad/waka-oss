@@ -1,9 +1,9 @@
 import { createClient } from '@libsql/client/web'
-import { requiredEnv } from './env.ts'
+import { env } from '../env.ts'
 
 export type Statement = { sql: string; args: (string | number | null)[] }
 
 export const db = createClient({
-  url: requiredEnv('TURSO_DATABASE_URL'),
-  authToken: requiredEnv('TURSO_AUTH_TOKEN'),
+  url: env.TURSO_DATABASE_URL,
+  authToken: env.TURSO_AUTH_TOKEN,
 })

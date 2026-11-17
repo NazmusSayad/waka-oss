@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { db, type Statement } from '../src/server/db.ts'
-import { requiredEnv } from '../src/server/env.ts'
+import { env } from '../src/env.ts'
 import { insertStatements, type Heartbeat } from '../src/server/ingest.ts'
 import { rebuildStatements } from '../src/server/rollups.ts'
 import {
@@ -34,8 +34,7 @@ type PipelineResponse = {
   )[]
 }
 
-const endpoint = `${requiredEnv('TURSO_DATABASE_URL').replace(/^libsql:/, 'https:')}/v2/pipeline`
-const token = requiredEnv('TURSO_AUTH_TOKEN')
+const endpoint = `${env.TURSO_DATABASE_URL.replace(/^libsql:/, 'https:')}/v2/pipeline`
 
 function encode(value: string | number | null): HranaValue {
   if (value === null) {
@@ -67,7 +66,10 @@ async function pipeline(statements: Statement[], transaction: boolean) {
   const started = performance.now()
   const response = await fetch(endpoint, {
     method: 'POST',
-    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      ...(env.TURSO_AUTH_TOKEN === undefined ? {} : { authorization: `Bearer ${env.TURSO_AUTH_TOKEN}` }),
+    },
     body: JSON.stringify({
       requests: [
         ...steps.map((step) => ({

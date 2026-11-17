@@ -1,11 +1,11 @@
 import { createHmac } from 'node:crypto'
-import { requiredEnv } from '@/server/env.ts'
+import { env } from '@/env.ts'
 
 export const sessionCookie = 'session'
 export const sessionMaxAgeSeconds = 30 * 24 * 60 * 60
 
 function sign(value: string) {
-  return createHmac('sha256', requiredEnv('API_KEY')).update(value).digest('base64url')
+  return createHmac('sha256', env.API_KEY).update(value).digest('base64url')
 }
 
 export function createSession() {

@@ -11,6 +11,7 @@
     "lint": "oxlint .",
     "lint:fix": "oxlint . --fix",
     "format": "oxfmt .",
+    "db:local": "sqld --db-path data.sqld --http-listen-addr 127.0.0.1:8080",
     "db:schema": "node --env-file=.env scripts/schema.ts",
     "bench": "node --env-file=.env scripts/bench.ts"
   },
