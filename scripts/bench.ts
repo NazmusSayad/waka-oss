@@ -2,15 +2,16 @@ import { readFileSync } from 'node:fs'
 import { db, type Statement } from '../src/server/db.ts'
 import { env } from '../src/env.ts'
 import { insertStatements, type Heartbeat } from '../src/server/ingest.ts'
-import { rebuildStatements } from '../src/server/rollups.ts'
+import { computeParallel } from '../src/server/parallel.ts'
+import { rebuild } from '../src/server/rollups.ts'
 import {
-  activityStatement,
-  computeParallel,
+  activityRows,
   dayStatement,
-  dependenciesStatement,
-  filesStatement,
+  daysStatement,
+  dependencyRows,
+  fileRows,
   parallelStatement,
-  sessionsStatement,
+  sessionRows,
 } from '../src/server/stats.ts'
 import { localTime } from '../src/server/time.ts'
 
@@ -19,6 +20,7 @@ type HranaValue =
   | { type: 'integer'; value: string }
   | { type: 'float'; value: number }
   | { type: 'text'; value: string }
+  | { type: 'blob'; base64: string }
 
 type ExecuteResult = {
   rows: HranaValue[][]
@@ -36,9 +38,12 @@ type PipelineResponse = {
 
 const endpoint = `${env.TURSO_DATABASE_URL.replace(/^libsql:/, 'https:')}/v2/pipeline`
 
-function encode(value: string | number | null): HranaValue {
+function encode(value: string | number | null | Uint8Array): HranaValue {
   if (value === null) {
     return { type: 'null' }
+  }
+  if (value instanceof Uint8Array) {
+    return { type: 'blob', base64: Buffer.from(value).toString('base64') }
   }
   if (typeof value === 'string') {
     return { type: 'text', value }
@@ -55,6 +60,9 @@ function decode(value: HranaValue) {
   }
   if (value.type === 'integer') {
     return Number(value.value)
+  }
+  if (value.type === 'blob') {
+    return new Uint8Array(Buffer.from(value.base64, 'base64'))
   }
   return value.value
 }
@@ -195,7 +203,7 @@ function shiftDate(date: string, days: number) {
 }
 
 const schema = readFileSync(new URL('../src/server/schema.sql', import.meta.url), 'utf8')
-const tables = ['heartbeats', 'activity', 'file_activity', 'dependency_activity', 'sessions', 'settings', 'rebuild_hours', 'rebuild_ranges']
+const tables = ['heartbeats', 'day_cache', 'settings']
 
 const existing = await db.execute('SELECT COUNT(*) FROM heartbeats')
 if (Number(existing.rows[0]?.[0]) !== 0) {
@@ -225,15 +233,30 @@ try {
     `loaded ${heartbeats.length} fake heartbeats (${Math.round(heartbeats.length / 365)}/day) in ${((performance.now() - loadStarted) / 1000).toFixed(0)}s`
   )
 
-  const rebuild = async () => {
-    const idle = Number((await db.execute('SELECT idle_timeout_minutes * 60.0 FROM settings')).rows[0]?.[0])
-    return pipeline(rebuildStatements(idle), true)
+  async function measureRebuild() {
+    const total = { results: [], wallMs: 0, dbMs: 0, rowsRead: 0, rowsWritten: 0 }
+    function add(run: Awaited<ReturnType<typeof pipeline>>) {
+      total.wallMs += run.wallMs
+      total.dbMs += run.dbMs
+      total.rowsRead += run.rowsRead
+      total.rowsWritten += run.rowsWritten
+      return run
+    }
+    await rebuild(
+      0,
+      async (statements) =>
+        add(await pipeline(statements, false)).results.map((result) => result.rows.map((row) => row.map(decode))),
+      async (statements) => {
+        add(await pipeline(statements, true))
+      }
+    )
+    return total
   }
   const report: Record<string, Record<string, number>> = {}
   const record = (label: string, run: Awaited<ReturnType<typeof pipeline>>) => {
     report[label] = { db_ms: Math.round(run.dbMs), rows_read: run.rowsRead, rows_written: run.rowsWritten }
   }
-  record('full rebuild (settings change)', await rebuild())
+  record('full build of every day', await measureRebuild())
 
   let time = Number((await db.execute('SELECT MAX(time) FROM heartbeats')).rows[0]?.[0])
   const ingest = (count: number) => {
@@ -248,14 +271,14 @@ try {
   }
   record('ingest: 1 heartbeat', await ingest(1))
   record('ingest: 25 heartbeats (offline sync)', await ingest(25))
-  record('rebuild after 26 new heartbeats', await rebuild())
+  record('rebuild after 26 new heartbeats', await measureRebuild())
   for (let index = 0; index < 225; index++) {
     await ingest(1)
   }
-  record('rebuild after 30 min of coding (225 heartbeats)', await rebuild())
+  record('rebuild after 30 min of coding (225 heartbeats)', await measureRebuild())
   time = Number((await db.execute('SELECT MIN(time) FROM heartbeats WHERE local_date = ?', [localTime(now - 2 * 86400).date])).rows[0]?.[0]) + 60
   await ingest(1)
-  record('rebuild after a late heartbeat from 2 days ago', await rebuild())
+  record('rebuild after a late heartbeat from 2 days ago', await measureRebuild())
   console.table(report)
 
   const today = localTime(now).date
@@ -267,18 +290,25 @@ try {
   ] as const
   const sizes: Record<string, number> = {}
   for (const [label, from] of ranges) {
-    for (const [name, statement] of [
-      ['activity', activityStatement(from, today)],
-      ['sessions', sessionsStatement(from, today)],
-      ['files', filesStatement(from, today)],
-      ['dependencies', dependenciesStatement(from, today)],
+    for (const [name, build] of [
+      ['activity', activityRows],
+      ['sessions', sessionRows],
+      ['files', fileRows],
+      ['dependencies', dependencyRows],
     ] as const) {
-      const run = await pipeline([statement], false)
-      const text = run.results[0]?.rows[0]?.[0]
-      report[`${name} ${label}`] = { db_ms: Math.round(run.dbMs), rows_read: run.rowsRead, rows_written: 0 }
-      sizes[`${name} ${label}`] = text?.type === 'text' ? text.value.length : 0
+      const run = await pipeline([daysStatement(name, from, today)], false)
+      const days = (run.results[0]?.rows ?? []).map((row) => row.map(decode))
+      const buildStarted = performance.now()
+      const response = JSON.stringify(build(days, 2))
+      report[`${name} ${label}`] = {
+        db_ms: Math.round(run.dbMs),
+        rows_read: run.rowsRead,
+        rows_written: 0,
+        js_ms: Math.round(performance.now() - buildStarted),
+      }
+      sizes[`${name} ${label}`] = response.length
     }
-    const parallel = await pipeline([parallelStatement(from, today, [])], false)
+    const parallel = await pipeline([parallelStatement(from, today, [], 15)], false)
     const rows = (parallel.results[0]?.rows ?? []).map((row): [number, number] => [
       Number(decode(row[0] ?? { type: 'null' })),
       Number(decode(row[1] ?? { type: 'null' })),

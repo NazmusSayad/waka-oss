@@ -39,7 +39,8 @@ export function Parallel(props: {
   const result = useParallel(
     props.range,
     props.filters,
-    props.status.version
+    props.status.version,
+    props.status.idle_timeout_minutes
   )
   const loaded = result.data
 

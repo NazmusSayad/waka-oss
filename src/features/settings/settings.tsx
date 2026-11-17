@@ -1,7 +1,6 @@
 import { Settings as SettingsIcon } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Popover,
@@ -11,6 +10,15 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Spinner } from '@/components/ui/spinner'
+import { idleTimeouts } from '@/constants/idle-timeouts'
 
 type Props = {
   idleTimeoutMinutes: number
@@ -24,8 +32,6 @@ export function Settings(props: Props) {
   const [error, setError] = useState<string | null>(null)
 
   const value = Number(minutes)
-  const valid =
-    minutes !== '' && Number.isInteger(value) && value >= 1 && value <= 120
 
   async function save() {
     setSaving(true)
@@ -72,7 +78,7 @@ export function Settings(props: Props) {
           <PopoverTitle>Idle timeout</PopoverTitle>
           <PopoverDescription className="text-xs">
             A gap longer than this between heartbeats ends a session and is not
-            counted as time. Saving recalculates all past data.
+            counted as time.
           </PopoverDescription>
         </PopoverHeader>
         <form
@@ -84,29 +90,44 @@ export function Settings(props: Props) {
         >
           <div className="grid flex-1 gap-1.5">
             <Label htmlFor="idle-timeout" className="text-xs">
-              Minutes (1–120)
+              Timeout
             </Label>
-            <Input
-              id="idle-timeout"
-              type="number"
-              min={1}
-              max={120}
-              step={1}
+            <Select
               value={minutes}
-              onChange={(event) => setMinutes(event.target.value)}
-              aria-invalid={!valid}
+              onValueChange={setMinutes}
               disabled={saving}
-            />
+            >
+              <SelectTrigger id="idle-timeout" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {idleTimeouts.map((timeout) => (
+                  <SelectItem key={timeout} value={String(timeout)}>
+                    {timeoutLabel(timeout)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <Button
             type="submit"
-            disabled={!valid || saving || value === props.idleTimeoutMinutes}
+            disabled={saving || value === props.idleTimeoutMinutes}
           >
-            {saving ? 'Recalculating…' : 'Save'}
+            {saving && <Spinner />}
+            Save
           </Button>
         </form>
         {error !== null && <p className="text-destructive text-xs">{error}</p>}
       </PopoverContent>
     </Popover>
   )
+}
+
+function timeoutLabel(minutes: number) {
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  if (hours === 0) {
+    return `${rest}m`
+  }
+  return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`
 }

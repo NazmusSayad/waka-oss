@@ -43,15 +43,15 @@ export function DayTimeline(props: {
     key: string
     message: string
   } | null>(null)
-  const key = `${props.date}|${props.status.version}`
+  const key = `${props.date}|${props.status.version}|${props.status.idle_timeout_minutes}`
 
   useEffect(() => {
     const controller = new AbortController()
-    const requestKey = `${props.date}|${props.status.version}`
+    const requestKey = `${props.date}|${props.status.version}|${props.status.idle_timeout_minutes}`
     async function load() {
       try {
         const response = await getJson<{ heartbeats: DayHeartbeat[] }>(
-          `/api/day?date=${props.date}&v=${props.status.version}`,
+          `/api/day?date=${props.date}&v=${props.status.version}&idle=${props.status.idle_timeout_minutes}`,
           controller.signal
         )
         setLoaded({ key: requestKey, heartbeats: response.heartbeats })
@@ -67,7 +67,7 @@ export function DayTimeline(props: {
     }
     void load()
     return () => controller.abort()
-  }, [props.date, props.status.version])
+  }, [props.date, props.status.version, props.status.idle_timeout_minutes])
 
   const heartbeats = useMemo(
     () =>

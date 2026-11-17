@@ -11,7 +11,8 @@ type ParallelData = {
 export function useParallel(
   range: Range,
   filters: Filter[],
-  version: string
+  version: string,
+  idleTimeoutMinutes: number
 ) {
   const [loaded, setLoaded] = useState<{
     key: string
@@ -21,7 +22,7 @@ export function useParallel(
     key: string
     message: string
   } | null>(null)
-  const query = `from=${range.from}&to=${range.to}&filters=${encodeURIComponent(JSON.stringify(filters))}&v=${version}`
+  const query = `from=${range.from}&to=${range.to}&filters=${encodeURIComponent(JSON.stringify(filters))}&v=${version}&idle=${idleTimeoutMinutes}`
 
   useEffect(() => {
     const controller = new AbortController()

@@ -88,7 +88,7 @@ export function App() {
         const status = await getJson<Status>('/api/status', controller.signal)
         const range = resolveRange(preset, customFrom, customTo, status)
         const previous = previousRange(range)
-        const version = `v=${status.version}`
+        const version = `v=${status.version}&idle=${status.idle_timeout_minutes}`
         const query = `from=${range.from}&to=${range.to}&${version}`
         const responses = await Promise.all([
           getJson<{ rows: ActivityRow[] }>(
